@@ -13,8 +13,38 @@ impl FontSearcher {
         Self { fonts: vec![] }
     }
 
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(not(any(
+        target_os = "macos",
+        target_os = "windows",
+        target_os = "linux",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    )))]
     pub fn search_system(&mut self) {}
+
+    /// Search for fonts in netbsd/openbsd etc.
+    #[cfg(any(target_os = "netbsd", target_os = "openbsd"))]
+    pub fn search_system(&mut self) {
+        self.search_dir("/usr/X11R7/lib/X11/fonts");
+        self.search_dir("/usr/X11R7/lib/X11/fonts/OTF");
+        self.search_dir("/usr/X11R7/lib/X11/fonts/TTF");
+        self.search_dir("/usr/X11R7/lib/X11/fonts/Type1");
+
+        if let Some(dir) = dirs::font_dir() {
+            self.search_dir(dir);
+        }
+    }
+
+    /// Search for fonts in fedora/ubuntu/freebsd etc.
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub fn search_system(&mut self) {
+        self.search_dir("/usr/share/fonts");
+
+        if let Some(dir) = dirs::font_dir() {
+            self.search_dir(dir);
+        }
+    }
 
     /// Search for fonts in the macOS system font directories.
     #[cfg(target_os = "macos")]
@@ -29,7 +59,7 @@ impl FontSearcher {
     }
 
     /// Search for fonts in the Windows system font directories.
-    #[cfg(windows)]
+    #[cfg(target_os = "windows")]
     pub fn search_system(&mut self) {
         let windir = std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".to_string());
 
@@ -71,7 +101,7 @@ impl FontSearcher {
         false
     }
 
-    #[cfg(windows)]
+    #[cfg(target_os = "windows")]
     /// Index the fonts in the file at the given path.
     pub fn search_file(&mut self, path: impl AsRef<Path>) {
         let content = read(path.as_ref()).unwrap();
@@ -90,7 +120,7 @@ impl FontSearcher {
             }
         }
     }
-    #[cfg(not(windows))]
+    #[cfg(not(target_os = "windows"))]
     /// Index the fonts in the file at the given path.
     pub fn search_file(&mut self, path: impl AsRef<Path>) {
         let content = read(path.as_ref()).unwrap();
